@@ -1,5 +1,16 @@
 """
-`function readsongs(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)`
+    `function readsong(fname::String, starttime::Real, endtime::Real, dir::String=pwd())`
+Given a file name, a working directory, a start time and an end time, read a segment of a song from a file
+
+(note: This is primarily used as a helper function to the `readsongs_*` family of functions)
+"""
+function readsong(fname::String, starttime::Real, endtime::Real, dir::String=pwd())
+    return wavread(dir*"/"*fname, Int(round(samplerate*starttime)):Int(round(samplerate*endtime)))[1][:, 1]
+end
+
+
+"""
+    `function readsongs(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)`
 
 Given a DataFrame `calls`, read out each call in the DataFrame into an array of Float64 and return an array of all the arrays.
 
@@ -41,12 +52,17 @@ function readsongs(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:fil
     songs = Array{Array{Float64, 1}, 1}(nSongs)
 
 @showprogress    for i in 1:nSongs
-	songs[i] = wavread(dir*"/"*calls[filenamecol][i], Int(round(samplerate*calls[starttimecol][i])):Int(round(samplerate*calls[endtimecol][i])))[1][:, 1]
+	songs[i] = readsong(calls[filenamecol][i], calls[starttimecol][i], calls[endtimecol][i], dir)
     end
 
     return songs
 end
 
+
+"""
+    `function readsongs_dict(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)`
+Like `readsongs` but instead of an array, returns a dict with keys of the form 'filename_starttime-endtime'
+"""
 function readsongs_dict(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)
     #Check for sanity of calls
     if !haskey(calls, filenamecol)
@@ -64,12 +80,16 @@ function readsongs_dict(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol
 
 @showprogress    for i in 1:nSongs
 	name = calls[filenamecol][i]*"_"*"$(calls[starttimecol][i])"*"-"*"$(calls[endtimecol][i])"
-	songs[name] = wavread(dir*"/"*calls[filenamecol][i], Int(round(samplerate*calls[starttimecol][i])):Int(round(samplerate*calls[endtimecol][i])))[1][:, 1]
+	songs[name] = readsong(calls[filenamecol][i], calls[starttimecol][i], calls[endtimecol][i], dir)
     end
 
     return songs
 end
 
+"""
+    `function readsongs_string(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)`
+Like readsongs_dict, but only returns an array containing what would be the keys of the array
+"""
 function readsongs_string(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)
     #Check for sanity of calls
     if !haskey(calls, filenamecol)
@@ -94,6 +114,7 @@ function readsongs_string(calls::DataFrame; dir::String=pwd(), filenamecol::Symb
 end
 
 
+export readsong
 export readsongs
 export readsongs_dict
 export readsongs_string
