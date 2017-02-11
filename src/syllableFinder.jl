@@ -1,15 +1,16 @@
 """A helper function to turn a linear index into a 2-D Array into a row index (I.E., a position down in a column)"""
 function index1(size1::Integer, index::Integer)
-    if index != size1
+    @assert index > 0
+    if (index%size1) != 0
 	return (index%size1)
     else
-	return index
+	return size1
     end
 end
 
 """A helper function to turn a linear index into a 2-D Array into a column index (I.E., a position along in a row)"""
 function index2(size1::Integer, index::Integer)
-    return div(index, size1)+1
+    return div(index-1, size1)+1
 end
 
 """Given dimension 1 of a 2-D array and two indecies, determine if index1 is adjacent to index2"""
@@ -82,6 +83,10 @@ function find_uncombined_syllables{T}(sonogram::AbstractArray{T, 2}, thresholdlo
 	syllables_temp = indecies[adjacent_indecies]
 	syllables_temp1 = map(i->index1(size1, i), syllables_temp)
 	syllables_temp2 = map(i->index2(size1, i), syllables_temp)
+	@assert !any(x->x<=0, syllables_temp1)
+	@assert !any(x->x>size1, syllables_temp1)
+	@assert !any(x->x<=0, syllables_temp2)
+	@assert !any(x->x>size(sonogram, 2), syllables_temp2)
 
 	
 	if any(x->x>thresholdhigh, view(sonogram, syllables_temp))
@@ -97,7 +102,7 @@ end
 
 
 """
-Take a set of syllables (problably output from `find_uncombined_syllables) and combine syllables seperated by small time-gaps`
+Take a set of syllables (problably output from `find_uncombined_syllables`) and combine syllables seperated by small time-gaps
 
 Parameters
 ----------
@@ -140,6 +145,8 @@ end
 Returns the upper left and lower right corners of a box containing the syllable `syllable`
 """
 function syllable_box(syllable::Syllable)::SyllableBox
+    @assert !any(x->x==0, syllable[1])
+    @assert !any(x->x==0, syllable[2])
     return ((minimum(syllable[1]), minimum(syllable[2])), (maximum(syllable[1]), maximum(syllable[2])))
 end
 
