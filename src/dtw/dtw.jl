@@ -24,6 +24,10 @@ The TimeWarp.jl package is licensed under the MIT "Expat" License:
 > SOFTWARE.
 =#
 
+using Distances
+include("sequence.jl")
+include("utils.jl")
+
 #####################################
 #     Basic interface functions     #
 #####################################
