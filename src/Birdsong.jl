@@ -4,6 +4,8 @@ using WAV
 using FDA
 using DataFrames
 using ProgressMeter
+using StatsBase
+using ArgCheck
 
 #Universal things that are package internals
 include("constants.jl")
@@ -17,6 +19,7 @@ include("callTrace.jl")
 include("find_sound.jl")
 include("readsongs.jl")
 include("sonogram.jl")
+include("summaryStats.jl")
 include("syllableFinder.jl")
 include("tonesmooth.jl")
 include("visualize3d.jl")

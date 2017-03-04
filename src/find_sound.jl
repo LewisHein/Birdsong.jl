@@ -29,7 +29,7 @@ function find_sound{T}(song::AbstractArray{T, 1}, cutoff::Real, maxsilence::Real
         maxdur = length(song)/samplerate
     end
     
-    song_env = envelope_along_centroid(song, STFT.gaussian(windowlength), windowstep, lowharmonic, highharmonic, STFT.powSpec, bandwidth)
+    song_env = envelope_along_centroid(song, STFT.gaussian(windowlength), windowstep, lowharmonic, highharmonic, STFT.powSpec, envelope_bandwidth)
     song_env /= maximum(song_env)
     
     maxsilence *= samplerate/windowstep #Convert from seconds to indecies in song_env
