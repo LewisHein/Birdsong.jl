@@ -21,14 +21,14 @@ of boxes around syllables
 
 **Note**: see Birdsong.aliased_types for documentation on the `Syllable` and `SyllableBox` types
 """
-function dftrace{T}(sono::Array{T, 2}, syllables::AbstractArray{SyllableBox, 1})
+function dftrace{T, T2}(sono::Array{T, 2}, syllables::AbstractArray{SyllableBox{T2}, 1})
     traces = similar(syllables, Array{Int, 1})
 
     for (i, syll) in enumerate(syllables)
-	tmin = syll[1][2]
-	tmax = syll[2][2]
-	fmin = syll[1][1]
-	fmax = syll[2][1]
+	tmin = syll.tmin
+	tmax = syll.tmax
+	fmin = syll.hmin
+	fmax = syll.hmax
 
 	traces[i] = Array{Int, 1}((tmax-tmin)+1)
 
@@ -40,7 +40,7 @@ function dftrace{T}(sono::Array{T, 2}, syllables::AbstractArray{SyllableBox, 1})
     return traces
 end
 
-function dftrace{T}(sono::Array{T, 2}, syllables::AbstractArray{Syllable, 1})
+function dftrace{T, T2}(sono::Array{T, 2}, syllables::AbstractArray{Syllable{T2}, 1})
     return dftrace(sono, syllable_boxes(syllables))
 end
 

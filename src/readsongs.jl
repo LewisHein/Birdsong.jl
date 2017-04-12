@@ -88,7 +88,7 @@ end
 
 """
     `function readsongs_string(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)`
-Like readsongs_dict, but only returns an array containing what would be the keys of the array
+Like readsongs_dict, but only returns an array containing what would be the keys of the dictionary
 """
 function readsongs_string(calls::DataFrame; dir::String=pwd(), filenamecol::Symbol=:file, starttimecol::Symbol=:start_time, endtimecol::Symbol=:end_time)
     #Check for sanity of calls

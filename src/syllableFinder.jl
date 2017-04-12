@@ -1,3 +1,49 @@
+import Base.==
+"""
+This type represents a single syllable of a sound.
+
+A single syllable is a set of points in a sonogram. These points are stored in two arrays of equal length, `times` and `harmonics`. Every index in the sonogram of the form (times[i], harmonics[i]) ∀ i within the length of these arrays is part of the syllable, and any index not of this form is not part of the syllable.
+
+Remember: Syllable and SyllableBox types just say *where* the syllable is in the sonogram where they were found. They contain no values from said sonogram (See [syllable and syllable box types](@ref syllSyllBoxTypes) for details)
+
+Fields
+------
+ - `harmonics`: harmonic (down-column) coordinates of the syllable
+ - `times`: time (along-row) coordinates of the syllable. *Note*: This is not in standard units of time. The unit of time represented depends on the window step used in building the sonogram
+"""
+immutable Syllable{T<:Integer}
+    harmonics::Array{T, 1}
+    times::Array{T, 1}
+end
+
+function ==(s1::Syllable, s2::Syllable)
+    return (s1.harmonics == s2.harmonics) && (s1.times == s2.times)
+end
+
+"""
+This type represents a rectangle around a syllable that minimally contains it
+Remember: Syllable and SyllableBox types just say *where* the syllable is in the sonogram where they were found. They contain no values from said sonogram. (See [syllable and syllable box types](@ref syllSyllBoxTypes) for details)
+
+Let h be index down columns (harmonic) and t be index along rows (time slice). 
+Fields
+------
+ - `hmin`: Lowest harmonic in the syllable.
+ - `tmin`: Start time of the syllable
+ - `hmax`: Highest harmonic in the syllable.
+ - `tmax`: End time of the syllable.
+"""
+immutable SyllableBox{T<:Integer}
+    hmin::T
+    tmin::T
+    hmax::T
+    tmax::T
+end
+
+function ==(sb1::SyllableBox, sb2::SyllableBox)
+    return (sb1.tmin == sb2.tmin) && (sb1.hmin == sb2.hmin) && (sb1.tmax == sb2.tmax) && (sb1.hmax == sb2.hmax)
+end
+
+
 """A helper function to turn a linear index into a 2-D Array into a row index (I.E., a position down in a column)"""
 function index1(size1::Integer, index::Integer)
     @assert index > 0
@@ -36,8 +82,7 @@ Parameters
 
 Return value
 ------------
- - An `Array` of `Tuple`s of `Array`s. Element 1 of each tuple contains the first indecies (down column) and element 2 the second indecies (along row) for each element
- of `sonogram` that is part of that particular syllable.
+ - An `Array` of `Syllable`s in `sonogram` 
 
 Algorithm
 ---------
@@ -51,7 +96,7 @@ The algorithm is (roughly) as follows:
  Further note: The above describes what is, in effect done, but not how. How is below in the code.
 """
 function find_uncombined_syllables{T}(sonogram::AbstractArray{T, 2}, thresholdlow::Real, thresholdhigh::Real)
-    syllables = Array{Tuple{Array{Int, 1}, Array{Int, 1}}, 1}()
+    syllables = Array{Syllable{Int}, 1}()
     const size1 = size(sonogram, 1)
 
     indecies = find(x->x>thresholdlow, sonogram)
@@ -90,7 +135,7 @@ function find_uncombined_syllables{T}(sonogram::AbstractArray{T, 2}, thresholdlo
 
 	
 	if any(x->x>thresholdhigh, view(sonogram, syllables_temp))
-	   push!(syllables, (syllables_temp1, syllables_temp2))
+	   push!(syllables, Syllable(syllables_temp1, syllables_temp2))
 	end
 	
 	deleteat!(indecies, adjacent_indecies)
@@ -110,29 +155,29 @@ Parameters
  - `maxTimeGap`: The maximum time gap (in seconds) allowed between syllables before they are considered really and truly seperate
  - `conversion_factor`: The multiplier to convert maxTimeGap from units of seconds into units of indecies (which is what syllables are in).
 """
-function combine_syllables(syllables_in::AbstractArray{Syllable, 1}, maxTimeGap::Real, conversion_factor::Real=samplerate/windowstep)
+function combine_syllables{T}(syllables_in::AbstractArray{Syllable{T}, 1}, maxTimeGap::Real, conversion_factor::Real=samplerate/windowstep)
     maxTimeGap *= conversion_factor
-    syllables_in = copy(syllables_in)
-    syllables = Tuple{Array{Int, 1}, Array{Int, 1}}[]
+    syllables_in = deepcopy(syllables_in)
+    syllables = Syllable{Int}[]
     nsyllables = length(syllables_in)
 
     while length(syllables_in) > 0
-        syllable_temp = [syllables_in[1][1], syllables_in[1][2]]
+        syllable_temp = syllables_in[1] #[syllables_in[1][1], syllables_in[1][2]]
 	todelete = Int[1]
 	for i in 2:length(syllables_in)
-	    max_col_syll1 = maximum(syllables_in[i-1][2])
-	    min_col_syll2 = minimum(syllables_in[i][2])
+	    max_col_syll1 = maximum(syllables_in[i-1].times)
+	    min_col_syll2 = minimum(syllables_in[i].times)
 	    
-	    if max_col_syll1 <= (min_col_syll2 + maxTimeGap)
-		syllable_temp[1] = union(syllable_temp[1], syllables_in[i][1])
-		syllable_temp[2] = union(syllable_temp[2], syllables_in[i][2])
+	    if min_col_syll2 <= (max_col_syll1 + maxTimeGap + 1)
+		append!(syllable_temp.times, syllables_in[i].times)
+		append!(syllable_temp.harmonics, syllables_in[i].harmonics)
 		push!(todelete, i)
 	    else
 		break
 	    end
 	end
 
-	push!(syllables, (syllable_temp[1], syllable_temp[2]))
+	push!(syllables, syllable_temp)
 
 	deleteat!(syllables_in, todelete)
     end
@@ -145,26 +190,22 @@ end
 Returns the upper left and lower right corners of a box containing the syllable `syllable`
 """
 function syllable_box(syllable::Syllable)::SyllableBox
-    @assert !any(x->x==0, syllable[1])
-    @assert !any(x->x==0, syllable[2])
-    return ((minimum(syllable[1]), minimum(syllable[2])), (maximum(syllable[1]), maximum(syllable[2])))
+    @assert !any(x->x==0, syllable.times)
+    @assert !any(x->x==0, syllable.harmonics)
+    return SyllableBox(minimum(syllable.harmonics), minimum(syllable.times), maximum(syllable.harmonics), maximum(syllable.times))
 end
 
 """
 `function syllable_boxes(syllables::AbstractArray{Tuple{Array{Int, 1}, Array{Int, 1}}, 1})`
 Returns the upper left and lower right corners of a box containing each syllable in `syllables`
 """
-function syllable_boxes(syllables::AbstractArray{Syllable, 1})
+function syllable_boxes{T}(syllables::AbstractArray{Syllable{T}, 1})
     boxes = map(syllable_box, syllables)
-#=    boxes = similar(syllables, Tuple{Tuple{Int, Int}, Tuple{Int, Int}})
     
-    for (i, syll) in enumerate(syllables)
-	boxes[i] = 
-    end=#
-
     return boxes
 end
 
+export Syllable, SyllableBox
 export find_uncombined_syllables
 export combine_syllables
 export syllable_box
